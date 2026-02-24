@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mon-api-deployment
+spec:
+  replicas: 3  # Le Scheduler va demander à Kubelet de créer 3 Pods dans le Worker Node
+  selector:
+    matchLabels:
+      app: mon-api
+  template:
+    metadata:
+      labels:
+        app: mon-api
+    spec:
+      containers:
+      - name: mon-api
+        image: mon-api:v1
+        imagePullPolicy: Never  # Important : utiliser l'image locale de Minikube
+        ports:
+        - containerPort: 5000

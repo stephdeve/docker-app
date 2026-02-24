@@ -1,0 +1,13 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mon-api-service
+spec:
+  type: NodePort  # Expose le service à l'extérieur du cluster
+  selector:
+    app: mon-api  # Route vers tous les Pods avec ce label
+  ports:
+  - port: 5000
+    targetPort: 5000
+    nodePort: 30080
