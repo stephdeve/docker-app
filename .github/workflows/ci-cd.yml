@@ -70,18 +70,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
+      # Installer kubectl
+      - name: Installer kubectl
+        uses: azure/setup-kubectl@v3
 
-      - name: Configure kubeconfig
+      # Simuler le déploiement
+      - name: Simuler le déploiement Kubernetes
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
-          export KUBECONFIG=$PWD/kubeconfig
-
-      - name: Deploy Docker image to Kubernetes
-        run: |
-          kubectl set image deployment/mon-api-deployment \
-            mon-api=${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          kubectl rollout status deployment/mon-api-deployment
+          echo "🚀 Pipeline CI/CD complète !"
+          echo ""
+          echo " Image construite et poussée vers :"
+          echo "   ghcr.io/${{ github.repository }}/mon-api:sha-${{ github.sha }}"
+          echo ""
+          echo " En production, ces commandes seraient exécutées sur le cluster :"
+          echo "   kubectl set image deployment/mon-api-deployment \\"
+          echo "     mon-api=ghcr.io/${{ github.repository }}/mon-api:sha-${{ github.sha }}"
+          echo "   kubectl rollout status deployment/mon-api-deployment --timeout=120s"
+          echo ""
+          echo " Le tag SHA permet de tracer exactement quel commit tourne en prod."
