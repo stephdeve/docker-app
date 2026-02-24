@@ -1,14 +1,62 @@
-version: "3"
+version: "3.8"
+
 services:
   api1:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
       - "8081:5000"
+    # On nomme les conteneurs pour les retrouver facilement dans les logs
+    container_name: api1
+
   api2:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
       - "8082:5000"
+    container_name: api2
+
   api3:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
       - "8083:5000"
+    container_name: api3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # On injecte notre fichier de config dans le conteneur Prometheus
+      # Le ":" sépare [chemin sur ta machine]:[chemin dans le conteneur]
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # On dit à Prometheus d'utiliser notre config au démarrage
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    # Prometheus démarre seulement après les APIs (pour éviter les erreurs de connexion initiales)
+    depends_on:
+      - api1
+      - api2
+      - api3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      # Volume nommé pour que tes dashboards persistent si tu redémarres Compose
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+# Déclaration du volume nommé — Docker le gère et il survit aux `docker compose down`
+volumes:
+  grafana-data:
