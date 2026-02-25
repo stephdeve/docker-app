@@ -1,44 +1,97 @@
 version: "3.8"
 
 services:
+  # ── BASE DE DONNÉES ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    # Les variables d'environnement configurent PostgreSQL au premier démarrage
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      # En dev, on peut mettre le mot de passe ici — JAMAIS en production
+      POSTGRES_PASSWORD: devsecret123
+    volumes:
+      # Volume nommé pour que les données persistent entre les redémarrages
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"    # Optionnel — utile pour se connecter avec un outil GUI
+    # healthcheck permet aux autres services de savoir quand Postgres est prêt
+    # pg_isready est l'outil officiel PostgreSQL pour vérifier l'état du serveur
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── API (3 instances) ────────────────────────────────────────────
   api1:
     build:
       context: .
       network: host
+    container_name: api1
     ports:
       - "8081:5000"
-    # On nomme les conteneurs pour les retrouver facilement dans les logs
-    container_name: api1
+    environment:
+      APP_ENV: development
+      APP_VERSION: "2.0.0"
+      DB_HOST: postgres      # Nom du service Docker — résolution DNS automatique
+      DB_PORT: "5432"
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASSWORD: devsecret123
+    depends_on:
+      postgres:
+        condition: service_healthy  # Attend que le healthcheck PostgreSQL soit vert
 
   api2:
     build:
       context: .
       network: host
+    container_name: api2
     ports:
       - "8082:5000"
-    container_name: api2
+    environment:
+      APP_ENV: development
+      APP_VERSION: "2.0.0"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASSWORD: devsecret123
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api3:
     build:
       context: .
       network: host
+    container_name: api3
     ports:
       - "8083:5000"
-    container_name: api3
+    environment:
+      APP_ENV: development
+      APP_VERSION: "2.0.0"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: appdb
+      DB_USER: appuser
+      DB_PASSWORD: devsecret123
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+  # ── MONITORING ───────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
-      # On injecte notre fichier de config dans le conteneur Prometheus
-      # Le ":" sépare [chemin sur ta machine]:[chemin dans le conteneur]
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    # On dit à Prometheus d'utiliser notre config au démarrage
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-    # Prometheus démarre seulement après les APIs (pour éviter les erreurs de connexion initiales)
     depends_on:
       - api1
       - api2
@@ -52,11 +105,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      # Volume nommé pour que tes dashboards persistent si tu redémarres Compose
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
 
-# Déclaration du volume nommé — Docker le gère et il survit aux `docker compose down`
 volumes:
+  postgres-data:
   grafana-data:

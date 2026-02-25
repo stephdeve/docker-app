@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: mon-api-deployment
 spec:
-  replicas: 3  # Le Scheduler va demander à Kubelet de créer 3 Pods dans le Worker Node
+  replicas: 3
   selector:
     matchLabels:
       app: mon-api
@@ -15,6 +15,13 @@ spec:
       containers:
       - name: mon-api
         image: mon-api:v1
-        imagePullPolicy: Never  # Important : utiliser l'image locale de Minikube
+        imagePullPolicy: Never
         ports:
         - containerPort: 5000
+        # envFrom injecte TOUTES les clés d'un ConfigMap ou Secret comme variables d'env
+        # C'est plus propre que de lister chaque variable une par une
+        envFrom:
+        - configMapRef:
+            name: mon-api-config   # Toutes les clés du ConfigMap deviennent des env vars
+        - secretRef:
+            name: mon-api-secret   # Idem pour le Secret — DB_PASSWORD sera disponible
