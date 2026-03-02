@@ -1,0 +1,44 @@
+
+# ── Configuration de l'application ───────────────────────────────
+app:
+  name: mon-api
+  env: production
+  version: "2.0.0"
+  replicaCount: 3
+  image:
+    repository: mon-api
+    tag: v1
+    pullPolicy: Never   # Never pour image locale, Always pour registry distant
+
+# ── Configuration de la base de données ──────────────────────────
+database:
+  host: postgres-service
+  port: 5432
+  name: appdb
+  user: appuser
+  # Le mot de passe est passé via --set en ligne de commande
+  # ou via un fichier values-secret.yaml non commité dans Git
+  password: ""
+
+# ── Configuration du Service ──────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 5000
+
+# ── Configuration de l'Ingress ────────────────────────────────────
+ingress:
+  enabled: true
+  host: monapp.local
+  tlsSecret: monapp-tls
+
+# ── Configuration de PostgreSQL ───────────────────────────────────
+postgresql:
+  enabled: true
+  replicaCount: 1
+  image: postgres:16-alpine
+  database: appdb
+  user: appuser
+
+# ── Configuration du Monitoring ───────────────────────────────────
+monitoring:
+  enabled: true
