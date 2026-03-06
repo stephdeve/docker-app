@@ -1,0 +1,46 @@
+cd:
+  runs-on: ubuntu-latest
+  needs: ci
+  if: github.ref == 'refs/heads/main'
+  steps:
+    - uses: actions/checkout@v4
+
+    # GitHub Actions rejoint ton réseau Tailscale
+    - name: Connecter au réseau Tailscale
+      uses: tailscale/github-action@v2
+      with:
+        authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+    # Maintenant la VM peut atteindre ton IP Tailscale 100.xx.xx.xx:6443
+    - name: Configurer kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+        chmod 600 ~/.kube/config
+        kubectl get nodes   # Connexion via Tailscale
+
+    - uses: azure/setup-helm@v4
+
+    - name: Pull secret ghcr.io
+      run: |
+        kubectl create secret docker-registry ghcr-secret \
+          --docker-server=ghcr.io \
+          --docker-username=${{ github.actor }} \
+          --docker-password=${{ secrets.GITHUB_TOKEN }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Déployer avec Helm
+      run: |
+        helm upgrade --install mon-app ./mon-api-chart \
+          --set app.image.repository=ghcr.io/${{ github.repository }}/mon-api \
+          --set app.image.tag=sha-${{ github.sha }} \
+          --set app.image.pullPolicy=Always \
+          --set database.password=${{ secrets.DB_PASSWORD }} \
+          --set ingress.enabled=false \
+          --atomic --timeout 5m
+
+    - name: Vérifier
+      run: |
+        kubectl rollout status deployment/mon-app-deployment
+        kubectl get pods
+        echo "✅ Déployé : sha-${{ github.sha }}"
